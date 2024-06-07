@@ -1,36 +1,50 @@
 import requests
 from bs4 import BeautifulSoup
-import csv
+import pandas as pd
 
-# URL of the e-commerce website to scrape
-url = "https://webscraper.io/test-sites/e-commerce/allinone/computers/tablets"
-r = requests.get(url)
 
-soup = BeautifulSoup(r.text, "lxml")
+def scrape_products(target_url):
+    """Scrapes product information from the given URL and stores it in a CSV file."""
+    try:
+        # Fetch the product listing page
+        response = requests.get(target_url)
+        response.raise_for_status()  # Raise an exception for non-200 status codes
 
-# Find product names and prices
-names = soup.find_all("a", class_="title")
-prices = soup.find_all("h4", class_="pull-right price")
-ratings = soup.find_all("p", class_="pull-right")
+        soup = BeautifulSoup(response.content, "html.parser")
 
-# Initialize lists to store data
-product_data = []
+        # Identify product listing elements (replace with website-specific selectors)
+        product_listings = soup.find_all("div", class_="product-card")  # Adjust selector
 
-for name, price, rating in zip(names, prices, ratings):
-    product_name = name.text.strip()
-    product_price = price.text.strip()
-    product_rating = rating.text.strip()
-    product_data.append([product_name, product_price, product_rating])
+        # Extract product details
+        products = []
+        for product_element in product_listings:
+            product_name = product_element.find("div", class_="product-name").text.strip()  # Adjust selectors
+            product_price = product_element.find("p", class_="discount-price").text.strip()  # Adjust selectors
+            product_rating = product_element.find("div", class_="product-rating").get("data-rating")  # Adjust selectors
+            product_image = product_element.find("img", class_="fy__img image").get("src")   # Adjust selectors
 
-# Specify the filename for the CSV file
-csv_filename = "product_data.csv"
+            products.append({
+                "Name": product_name,
+                "Price": product_price,
+                "Rating": product_rating,
+                "Image":product_image
+            })
 
-# Save data to CSV
-with open(csv_filename, 'w', newline='') as csvfile:
-    csv_writer = csv.writer(csvfile)
-    csv_writer.writerow(["Product Name", "Product Price", "Product Rating"])
+        # Create and save the CSV file
+        df = pd.DataFrame(products)
+        df.to_csv("products.csv", index=False)  # Adjust filename
 
-    for data in product_data:
-        csv_writer.writerow(data)
+        print("Product information scraped and saved to products.csv")
 
-print(f"Data successfully scraped and saved to {csv_filename}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error: An error occurred while fetching the website: {e}")
+
+    except AttributeError as e:
+        print(f"Error: The website structure might have changed. Attribute not found: {e}")
+
+
+if __name__ == "__main__":
+    # Replace with the actual URL of the product listing page you want to scrape
+    target_url = "https://www.tirabeauty.com/collection/fragrance-mens-fragrance-perfumes-edt-and-edp"
+
+    scrape_products(target_url)
